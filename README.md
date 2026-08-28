@@ -7,6 +7,8 @@ machine has updates waiting.
 **Red** — updates are available.
 **Grey** — checking, or installing.
 
+Those are the defaults; each state's colour can be changed from the menu.
+
 It checks every ten minutes in the background. No daemon runs as root.
 
 ---
@@ -16,7 +18,7 @@ It checks every ten minutes in the background. No daemon runs as root.
 Download the `.rpm` from the [Releases](../../releases) page, then:
 
 ```bash
-sudo dnf install ./update-fedora-rawhide-1.0.0-1.fc46.noarch.rpm
+sudo dnf install ./update-fedora-rawhide-1.1.0-1.fc46.noarch.rpm
 ```
 
 `dnf` pulls in every dependency on its own. Start it from your application
@@ -50,6 +52,7 @@ rm -f ~/.config/autostart/update-fedora-rawhide.desktop
 | **Check now** | Checks immediately, without waiting for the timer. |
 | **Install updates…** | Opens a terminal running `dnf upgrade`. You watch it and can abort. |
 | **Show package list** | Lists what is pending. |
+| **Colors** | Pick the colour of each state. Seven options: blue, green, grey, white, black, red, yellow. |
 | **Start with system** | Adds or removes the autostart entry. |
 | **Quit** | Closes the tray icon. |
 
@@ -57,6 +60,28 @@ When the pending updates include a kernel or an NVIDIA package, the menu says
 so on its own line. That is deliberate: on Rawhide a new kernel means the
 out-of-tree NVIDIA module has to be rebuilt, and that is what tells you a
 reboot is coming.
+
+---
+
+## Colours
+
+**Colors** in the menu sets the colour of each state independently, out of
+blue, green, grey, white, black, red and yellow. The choice takes effect
+immediately and is remembered in:
+
+```
+~/.config/update-fedora-rawhide/colors.conf
+```
+
+```ini
+update  = red
+idle    = green
+working = grey
+```
+
+The file is plain text, so you can edit it by hand as well. A bad value is
+ignored and the default is used, so a broken config can never stop the icon
+from showing up.
 
 ---
 
@@ -80,7 +105,7 @@ while a check is running.
 sudo dnf install rpm-build rpmdevtools
 rpmdev-setuptree
 
-VERSION=1.0.0
+VERSION=1.1.0
 git archive --format=tar.gz \
     --prefix=update-fedora-rawhide-$VERSION/ \
     -o ~/rpmbuild/SOURCES/update-fedora-rawhide-$VERSION.tar.gz HEAD

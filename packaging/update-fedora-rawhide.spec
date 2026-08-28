@@ -1,5 +1,5 @@
 Name:           update-fedora-rawhide
-Version:        1.0.0
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        Tray icon that watches for Fedora Rawhide updates
 
@@ -42,6 +42,9 @@ Checking is done as your own user with a read only "dnf check-update".
 Only the actual upgrade asks for a password, through pkexec. Nothing runs
 as root in the background.
 
+The colour of each of the three states can be chosen from the menu, from
+seven options, and is remembered in ~/.config/update-fedora-rawhide.
+
 %prep
 %autosetup
 
@@ -72,6 +75,10 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_datadir}/icons/hicolor/scalable/apps/update-arrow-*.svg
 
 %changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.1.0-1
+- Colours are now chosen from the menu, per state, out of seven options.
+- One icon file per colour, so the tray never has to reread a changed file.
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.0.0-1
 - First release.
 - Tray icon with green/red state, ten minute polling and manual check.

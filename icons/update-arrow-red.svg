@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Vermelho: ha atualizacoes. Mesma seta; so a cor muda, para a forma
-     continuar reconhecivel de relance. -->
+<!-- Seta de download na cor red (#e74c3c).
+     Um arquivo por cor: o nome do icone e' estatico, entao a bandeja do KDE
+     nunca precisa reler um arquivo que mudou de conteudo -- trocar de cor e'
+     so apontar para outro nome. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
   <g fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="4.4,12.6 4.4,17.6 17.6,17.6 17.6,12.6"/>

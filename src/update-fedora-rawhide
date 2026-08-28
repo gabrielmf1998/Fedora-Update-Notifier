@@ -37,14 +37,33 @@ HOME = os.path.expanduser("~")
 AUTOSTART = os.path.join(HOME, ".config/autostart", f"{APP_ID}.desktop")
 SELF = os.path.abspath(__file__)
 
+CONFIG_DIR = os.path.join(
+    os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), APP_ID)
+CONFIG = os.path.join(CONFIG_DIR, "colors.conf")
+
 # Os ícones são instalados no tema hicolor do sistema
-# (/usr/share/icons/hicolor/scalable/apps). É o único lugar que o
-# StatusNotifier do KDE resolve de forma confiável: um diretório avulso
-# passado por set_icon_theme_path() registra certo no D-Bus, mas o ícone
-# simplesmente não é desenhado na bandeja.
-ICON_OK = "update-arrow-ok"
-ICON_PENDING = "update-arrow-pending"
-ICON_BUSY = "update-arrow-busy"
+# (/usr/share/icons/hicolor/scalable/apps). É o único lugar que a bandeja do
+# KDE resolve de forma confiável: um diretório avulso passado por
+# set_icon_theme_path() registra certo no D-Bus, mas não é desenhado.
+#
+# Existe um arquivo POR COR, e não um arquivo por estado que é reescrito.
+# Assim o nome do ícone é sempre estático: trocar de cor vira apontar para
+# outro nome, e a bandeja nunca precisa reler um arquivo cujo conteúdo mudou
+# — que é exatamente o caso em que o cache dela entrega o desenho antigo.
+COLORS = {
+    "blue":   "#3b9dff",
+    "green":  "#2ecc71",
+    "grey":   "#95a5a6",
+    "white":  "#f2f6fa",
+    "black":  "#1c1f24",
+    "red":    "#e74c3c",
+    "yellow": "#ffcc00",
+}
+DEFAULT_COLORS = {"update": "red", "idle": "green", "working": "grey"}
+
+
+def icon_for(color):
+    return f"update-arrow-{color}"
 
 INTERVAL_MIN = 10                      # minutos entre checagens automáticas
 KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|.*nvidia)", re.I)
@@ -62,9 +81,36 @@ def run(cmd, timeout=600):
         return 1, str(exc)
 
 
+def load_colors():
+    """Lê a escolha do usuário. Qualquer problema cai no padrão, porque um
+    arquivo de configuração corrompido não pode impedir o ícone de aparecer."""
+    colors = dict(DEFAULT_COLORS)
+    try:
+        with open(CONFIG) as fh:
+            for line in fh:
+                if "=" not in line or line.lstrip().startswith("#"):
+                    continue
+                key, val = (x.strip() for x in line.split("=", 1))
+                if key in colors and val in COLORS:
+                    colors[key] = val
+    except OSError:
+        pass
+    return colors
+
+
+def save_colors(colors):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG, "w") as fh:
+        fh.write("# Cor do ícone da bandeja para cada estado.\n")
+        fh.write("# Valores: " + ", ".join(sorted(COLORS)) + "\n")
+        for key in ("update", "idle", "working"):
+            fh.write(f"{key} = {colors[key]}\n")
+
+
 class Tray:
     def __init__(self):
         Notify.init("Fedora Rawhide Updates")
+        self.colors = load_colors()
 
         self.count = None          # None = ainda não sabemos
         self.critical = []         # pendentes de kernel/nvidia
@@ -72,7 +118,8 @@ class Tray:
         self.busy = False
 
         self.ind = AppIndicator3.Indicator.new(
-            APP_ID, ICON_BUSY, AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
+            APP_ID, icon_for(self.colors["working"]),
+            AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
         )
         self.ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.ind.set_title("Fedora Rawhide Updates")
@@ -117,6 +164,9 @@ class Tray:
                       enabled=bool(self.count) and not self.busy)
 
         self.menu.append(Gtk.SeparatorMenuItem())
+        self.add_colors_menu()
+
+        self.menu.append(Gtk.SeparatorMenuItem())
 
         startup = Gtk.CheckMenuItem(label="Start with system")
         startup.set_active(os.path.exists(AUTOSTART))
@@ -128,6 +178,60 @@ class Tray:
         self.add_item("Quit", lambda *_: Gtk.main_quit())
 
         self.menu.show_all()
+
+    def add_colors_menu(self):
+        """Submenu "Colors", com um estado por linha e as cores em rádio.
+
+        Rádio e não caixa: cada estado tem exatamente uma cor, e o grupo deixa
+        isso explícito — o usuário vê qual está valendo sem precisar abrir e
+        comparar.
+        """
+        root = Gtk.MenuItem(label="Colors")
+        sub = Gtk.Menu()
+        root.set_submenu(sub)
+
+        for state, label in (("update", "Update available"),
+                             ("idle", "Up to date"),
+                             ("working", "Checking")):
+            item = Gtk.MenuItem(label=f"{label}  ({self.colors[state]})")
+            colmenu = Gtk.Menu()
+            item.set_submenu(colmenu)
+
+            group = []
+            for color in sorted(COLORS):
+                radio = Gtk.RadioMenuItem.new_with_label(group, color)
+                group = radio.get_group()
+                radio.set_active(self.colors[state] == color)
+                radio.connect("toggled", self.on_color_chosen, state, color)
+                radio.show()
+                colmenu.append(radio)
+
+            item.show_all()
+            sub.append(item)
+
+        root.show_all()
+        self.menu.append(root)
+
+    def on_color_chosen(self, item, state, color):
+        # O toggled dispara também para o rádio que está sendo DESmarcado;
+        # sem esta guarda a escolha seria sobrescrita pelo item antigo.
+        if not item.get_active() or self.colors[state] == color:
+            return
+        self.colors[state] = color
+        save_colors(self.colors)
+        self.refresh_icon()
+        self.build_menu()
+
+    def refresh_icon(self):
+        """Reaplica o ícone do estado atual, para a troca de cor valer na hora."""
+        if self.busy:
+            state = "working"
+        elif self.count:
+            state = "update"
+        else:
+            state = "idle"
+        self.ind.set_icon_full(icon_for(self.colors[state]),
+                               self.ind.get_title() or APP_ID)
 
     def add_item(self, label, cb, enabled=True, bold=False):
         item = Gtk.MenuItem()
@@ -157,7 +261,7 @@ class Tray:
         if self.busy:
             return
         self.busy = True
-        self.ind.set_icon_full(ICON_BUSY, "Checking for updates")
+        self.ind.set_icon_full(icon_for(self.colors["working"]), "Checking for updates")
         self.build_menu()
         threading.Thread(target=self._check_worker, args=(auto,),
                          daemon=True).start()
@@ -186,7 +290,8 @@ class Tray:
         self.last_check = time.strftime("%H:%M")
         self.busy = False
 
-        self.ind.set_icon_full(ICON_PENDING if count else ICON_OK,
+        state = "update" if count else "idle"
+        self.ind.set_icon_full(icon_for(self.colors[state]),
                                f"{count} updates" if count else "Up to date")
         self.build_menu()
 
@@ -201,7 +306,7 @@ class Tray:
 
     def notify(self, title, body=""):
         try:
-            n = Notify.Notification.new(title, body, ICON_PENDING)
+            n = Notify.Notification.new(title, body, icon_for(self.colors["update"]))
             n.show()
         except Exception:
             pass
@@ -211,7 +316,7 @@ class Tray:
         if self.busy:
             return
         self.busy = True
-        self.ind.set_icon_full(ICON_BUSY, "Installing updates")
+        self.ind.set_icon_full(icon_for(self.colors["working"]), "Installing updates")
         self.build_menu()
         threading.Thread(target=self._install_worker, daemon=True).start()
 
