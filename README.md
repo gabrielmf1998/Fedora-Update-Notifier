@@ -18,7 +18,7 @@ It checks every ten minutes in the background. No daemon runs as root.
 Download the `.rpm` from the [Releases](../../releases) page, then:
 
 ```bash
-sudo dnf install ./update-fedora-rawhide-1.4.0-1.fc46.noarch.rpm
+sudo dnf install ./update-fedora-rawhide-1.4.1-1.fc46.noarch.rpm
 ```
 
 `dnf` pulls in every dependency on its own. Start it from your application
@@ -114,7 +114,7 @@ while a check is running.
 sudo dnf install rpm-build rpmdevtools
 rpmdev-setuptree
 
-VERSION=1.4.0
+VERSION=1.4.1
 git archive --format=tar.gz \
     --prefix=update-fedora-rawhide-$VERSION/ \
     -o ~/rpmbuild/SOURCES/update-fedora-rawhide-$VERSION.tar.gz HEAD

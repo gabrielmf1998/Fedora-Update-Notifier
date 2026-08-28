@@ -1,5 +1,5 @@
 Name:           update-fedora-rawhide
-Version:        1.4.0
+Version:        1.4.1
 Release:        1%{?dist}
 Summary:        Fedora Update Notifier, a tray icon that watches for system updates
 
@@ -76,6 +76,21 @@ install -Dpm 0644 desktop/%{name}.desktop \
 
 install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 
+# O Fedora tem gatilhos de arquivo que reconstroem esses caches sozinhos, mas
+# eles vivem em pacotes que podem nao estar instalados numa maquina enxuta.
+# Chamar aqui e barato, e idempotente, e garante que o item do menu e o icone
+# aparecam no primeiro login apos a instalacao, sem o usuario mexer em nada.
+%post
+/usr/bin/update-desktop-database &>/dev/null || :
+/usr/bin/gtk-update-icon-cache -qtf %{_datadir}/icons/hicolor &>/dev/null || :
+/usr/bin/kbuildsycoca6 --noincremental &>/dev/null || :
+
+%postun
+if [ $1 -eq 0 ]; then
+    /usr/bin/update-desktop-database &>/dev/null || :
+    /usr/bin/gtk-update-icon-cache -qtf %{_datadir}/icons/hicolor &>/dev/null || :
+fi
+
 %files
 %license LICENSE
 %doc %{_docdir}/%{name}/README.md
@@ -85,6 +100,10 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_datadir}/icons/hicolor/scalable/apps/fedora-update-notifier.svg
 
 %changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.4.1-1
+- Refresh the desktop and icon caches on install, so the menu entry and its
+  icon show up on the user's machine without any manual step.
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.4.0-1
 - The desktop entry was being shipped empty, so the menu showed the raw
   command name with no icon. It now carries a proper name, description and
