@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Fedora Rawhide Updates
+GenericName=Update Checker
+Comment=Tray icon that watches for system updates
+Exec=/usr/bin/update-fedora-rawhide
+Icon=update-arrow-pending
+Terminal=false
+Categories=System;Settings;
+Keywords=update;dnf;rawhide;fedora;tray;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

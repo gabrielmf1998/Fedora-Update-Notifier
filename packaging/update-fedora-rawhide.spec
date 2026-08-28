@@ -1,0 +1,82 @@
+Name:           update-fedora-rawhide
+Version:        1.0.0
+Release:        1%{?dist}
+Summary:        Tray icon that watches for Fedora Rawhide updates
+
+License:        MIT
+URL:            https://github.com/gabrielmf1998/update-check-fedora-rawhide
+Source0:        %{name}-%{version}.tar.gz
+
+BuildArch:      noarch
+
+# Só arquivos de dados e um script Python: nada a compilar.
+BuildRequires:  python3-devel
+
+Requires:       python3
+Requires:       python3-gobject
+Requires:       gtk3
+Requires:       libappindicator-gtk3
+Requires:       libnotify
+Requires:       dnf
+# O menu "Install updates…" e "Show package list" abrem um terminal.
+Recommends:     konsole
+# pkexec, usado para autenticar a instalação dos pacotes.
+Requires:       polkit
+
+%description
+A small system tray indicator for Fedora Rawhide, where the package set moves
+almost every day.
+
+The icon is green when the system is up to date and red when updates are
+waiting. It checks every ten minutes in the background and the menu offers a
+manual check, the package list, and a one click upgrade that runs in a
+terminal so you can watch it and abort if needed.
+
+Because Rawhide ships a new kernel very often — and a new kernel means the
+out of tree NVIDIA module has to be rebuilt — the menu calls out separately
+whether the pending updates include kernel or driver packages. That is the
+piece of information that tells you a reboot is coming.
+
+Checking is done as your own user with a read only "dnf check-update".
+Only the actual upgrade asks for a password, through pkexec. Nothing runs
+as root in the background.
+
+%prep
+%autosetup
+
+%build
+# Nada a construir.
+
+%install
+install -Dpm 0755 src/%{name} %{buildroot}%{_bindir}/%{name}
+
+# Os ícones ficam num diretório próprio em vez de entrar no tema hicolor:
+# o AppIndicator recebe esse caminho via set_icon_theme_path() e resolve os
+# nomes ali dentro, sem risco de conflitar com o tema de ícones do sistema.
+for f in icons/*.svg; do
+    install -Dpm 0644 "$f" %{buildroot}%{_datadir}/%{name}/icons/$(basename "$f")
+done
+
+# O mesmo SVG serve de ícone da aplicação no menu do desktop.
+install -Dpm 0644 icons/update-arrow-pending.svg \
+    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/update-arrow-pending.svg
+
+install -Dpm 0644 desktop/%{name}.desktop \
+    %{buildroot}%{_datadir}/applications/%{name}.desktop
+
+install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
+
+%files
+%license LICENSE
+%doc %{_docdir}/%{name}/README.md
+%{_bindir}/%{name}
+%{_datadir}/%{name}/
+%{_datadir}/applications/%{name}.desktop
+%{_datadir}/icons/hicolor/scalable/apps/update-arrow-pending.svg
+
+%changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.0.0-1
+- First release.
+- Tray icon with green/red state, ten minute polling and manual check.
+- Highlights kernel and NVIDIA updates, which are the ones that need a reboot.
+- "Start with system" toggle writes a user autostart entry.

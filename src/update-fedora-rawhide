@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""Ícone de bandeja que vigia atualizações do Fedora Rawhide.
+
+Verde = em dia. Vermelho = há atualizações. Cinza = checando ou aplicando.
+Checa a cada 10 minutos por padrão, e o menu tem "Check now".
+
+Detalhes de projeto:
+
+- A checagem roda `dnf check-update` num processo separado e SEM sudo, porque
+  ela é somente-leitura. Só o "Install updates" pede senha, via pkexec.
+
+- Rawhide troca de kernel quase todo dia, e kernel novo significa que o módulo
+  da NVIDIA precisa recompilar. Por isso o menu separa quantos dos pendentes
+  são de kernel/nvidia: é a informação que decide se vai precisar reiniciar.
+
+- Nada de bloquear a interface. Toda chamada externa acontece numa thread e o
+  resultado volta pro loop do GTK com GLib.idle_add.
+
+- A interface é em inglês; os comentários, em português.
+"""
+import os
+import re
+import shlex
+import subprocess
+import threading
+import time
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("AppIndicator3", "0.1")
+gi.require_version("Notify", "0.7")
+from gi.repository import AppIndicator3, GLib, Gtk, Notify  # noqa: E402
+
+APP_ID = "update-fedora-rawhide"
+HOME = os.path.expanduser("~")
+# Instalado pelo RPM os ícones ficam em /usr/share; rodando direto do
+# repositório (ou de ~/.local) caímos no diretório do usuário. Assim o mesmo
+# arquivo serve para os dois casos, sem precisar de duas versões.
+_ICON_CANDIDATES = (
+    "/usr/share/update-fedora-rawhide/icons",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "icons"),
+    os.path.join(HOME, ".local/share/icons"),
+)
+ICON_DIR = next(
+    (d for d in _ICON_CANDIDATES if os.path.exists(os.path.join(d, "update-arrow-ok.svg"))),
+    _ICON_CANDIDATES[-1],
+)
+AUTOSTART = os.path.join(HOME, ".config/autostart", f"{APP_ID}.desktop")
+SELF = os.path.abspath(__file__)
+
+# O AppIndicator/StatusNotifier do KDE resolve icone por NOME dentro de um
+# diretorio de tema, nao por caminho absoluto. Passar caminho funciona de
+# forma inconsistente e o icone some da bandeja.
+ICON_OK = "update-arrow-ok"
+ICON_PENDING = "update-arrow-pending"
+ICON_BUSY = "update-arrow-busy"
+ICON_PATH_PENDING = os.path.join(ICON_DIR, "update-arrow-pending.svg")
+
+INTERVAL_MIN = 10                      # minutos entre checagens automáticas
+KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|.*nvidia)", re.I)
+
+
+def run(cmd, timeout=600):
+    """Executa e devolve (returncode, stdout). Nunca levanta exceção."""
+    try:
+        p = subprocess.run(
+            cmd, shell=isinstance(cmd, str), capture_output=True,
+            text=True, timeout=timeout,
+        )
+        return p.returncode, p.stdout
+    except Exception as exc:                       # timeout, binário ausente...
+        return 1, str(exc)
+
+
+class Tray:
+    def __init__(self):
+        Notify.init("Fedora Rawhide Updates")
+
+        self.count = None          # None = ainda não sabemos
+        self.critical = []         # pendentes de kernel/nvidia
+        self.last_check = None
+        self.busy = False
+
+        self.ind = AppIndicator3.Indicator.new(
+            APP_ID, ICON_BUSY, AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
+        )
+        self.ind.set_icon_theme_path(ICON_DIR)
+        self.ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+        self.ind.set_title("Fedora Rawhide Updates")
+
+        self.menu = Gtk.Menu()
+        self.ind.set_menu(self.menu)
+        self.build_menu()
+
+        self.check(auto=True)
+        GLib.timeout_add_seconds(INTERVAL_MIN * 60, self.on_timer)
+
+    # ------------------------------------------------------------------ menu
+    def build_menu(self):
+        for child in self.menu.get_children():
+            self.menu.remove(child)
+
+        # Estado, em uma linha só, não clicável.
+        if self.busy:
+            label = "Checking…"
+        elif self.count is None:
+            label = "Status unknown"
+        elif self.count == 0:
+            label = "System is up to date"
+        else:
+            label = f"{self.count} update{'s' if self.count != 1 else ''} available"
+        self.add_item(label, None, enabled=False, bold=True)
+
+        # Kernel e nvidia merecem destaque: são o que obriga a reiniciar.
+        if self.critical:
+            self.add_item(f"includes {', '.join(self.critical[:3])}", None,
+                          enabled=False)
+
+        if self.last_check:
+            self.add_item(f"Last checked {self.last_check}", None, enabled=False)
+
+        self.menu.append(Gtk.SeparatorMenuItem())
+
+        self.add_item("Check now", self.on_check_now, enabled=not self.busy)
+        self.add_item("Install updates…", self.on_install,
+                      enabled=bool(self.count) and not self.busy)
+        self.add_item("Show package list", self.on_show_list,
+                      enabled=bool(self.count) and not self.busy)
+
+        self.menu.append(Gtk.SeparatorMenuItem())
+
+        startup = Gtk.CheckMenuItem(label="Start with system")
+        startup.set_active(os.path.exists(AUTOSTART))
+        startup.connect("toggled", self.on_startup_toggled)
+        startup.show()
+        self.menu.append(startup)
+
+        self.menu.append(Gtk.SeparatorMenuItem())
+        self.add_item("Quit", lambda *_: Gtk.main_quit())
+
+        self.menu.show_all()
+
+    def add_item(self, label, cb, enabled=True, bold=False):
+        item = Gtk.MenuItem()
+        lbl = Gtk.Label()
+        if bold:
+            lbl.set_markup(f"<b>{GLib.markup_escape_text(label)}</b>")
+        else:
+            lbl.set_text(label)
+        lbl.set_xalign(0.0)
+        item.add(lbl)
+        item.set_sensitive(enabled)
+        if cb:
+            item.connect("activate", cb)
+        item.show_all()
+        self.menu.append(item)
+        return item
+
+    # --------------------------------------------------------------- checagem
+    def on_timer(self):
+        self.check(auto=True)
+        return True                                # mantém o timer vivo
+
+    def on_check_now(self, *_):
+        self.check(auto=False)
+
+    def check(self, auto):
+        if self.busy:
+            return
+        self.busy = True
+        self.ind.set_icon_full(ICON_BUSY, "Checking for updates")
+        self.build_menu()
+        threading.Thread(target=self._check_worker, args=(auto,),
+                         daemon=True).start()
+
+    def _check_worker(self, auto):
+        # check-update devolve 100 quando HÁ atualizações e 0 quando não há;
+        # qualquer outro código é erro de verdade.
+        rc, out = run(["dnf", "check-update", "--refresh"], timeout=900)
+
+        pkgs = []
+        for line in out.splitlines():
+            m = re.match(r"^([a-zA-Z0-9_.+-]+)\.(x86_64|i686|noarch)\s+\S+\s+\S+",
+                         line)
+            if m:
+                pkgs.append(m.group(1))
+
+        count = len(pkgs)
+        critical = sorted({p for p in pkgs if KERNEL_RE.match(p)})
+        GLib.idle_add(self._check_done, count, critical, pkgs, auto, rc)
+
+    def _check_done(self, count, critical, pkgs, auto, rc):
+        was = self.count
+        self.count = count
+        self.critical = critical
+        self.pkgs = pkgs
+        self.last_check = time.strftime("%H:%M")
+        self.busy = False
+
+        self.ind.set_icon_full(ICON_PENDING if count else ICON_OK,
+                               f"{count} updates" if count else "Up to date")
+        self.build_menu()
+
+        # Notifica só quando muda de "em dia" para "tem update", para não
+        # incomodar a cada dez minutos.
+        if count and was in (0, None) and auto:
+            extra = ""
+            if critical:
+                extra = "\nIncludes kernel/driver — a reboot will be needed."
+            self.notify(f"{count} updates available", extra.strip())
+        return False
+
+    def notify(self, title, body=""):
+        try:
+            n = Notify.Notification.new(title, body, ICON_PATH_PENDING)
+            n.show()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------- instalação
+    def on_install(self, *_):
+        if self.busy:
+            return
+        self.busy = True
+        self.ind.set_icon_full(ICON_BUSY, "Installing updates")
+        self.build_menu()
+        threading.Thread(target=self._install_worker, daemon=True).start()
+
+    def _install_worker(self):
+        # Roda num terminal para o usuário ver o progresso e poder abortar.
+        # pkexec cuida da autenticação.
+        cmd = ("konsole --hold -e bash -c "
+               + shlex.quote("pkexec dnf upgrade -y --refresh; echo; "
+                             "echo '--- done, close this window ---'; read -n1"))
+        rc, _ = run(cmd, timeout=7200)
+        GLib.idle_add(self._install_done)
+
+    def _install_done(self):
+        self.busy = False
+        self.check(auto=False)                     # revalida o estado real
+        return False
+
+    # ----------------------------------------------------------------- listas
+    def on_show_list(self, *_):
+        pkgs = getattr(self, "pkgs", [])
+        if not pkgs:
+            return
+        text = "\n".join(sorted(pkgs))
+        cmd = ("konsole --hold -e bash -c "
+               + shlex.quote(f"printf '%s\\n' {shlex.quote(text)} | less"))
+        subprocess.Popen(cmd, shell=True)
+
+    # -------------------------------------------------------------- autostart
+    def on_startup_toggled(self, item):
+        if item.get_active():
+            os.makedirs(os.path.dirname(AUTOSTART), exist_ok=True)
+            with open(AUTOSTART, "w") as fh:
+                fh.write(
+                    "[Desktop Entry]\n"
+                    "Type=Application\n"
+                    "Name=Fedora Rawhide Updates\n"
+                    "Comment=Tray icon that watches for system updates\n"
+                    f"Exec={SELF}\n"
+                    "Icon=system-software-update\n"
+                    "Terminal=false\n"
+                    "X-GNOME-Autostart-enabled=true\n"
+                )
+        else:
+            try:
+                os.remove(AUTOSTART)
+            except FileNotFoundError:
+                pass
+
+
+if __name__ == "__main__":
+    Tray()
+    Gtk.main()
