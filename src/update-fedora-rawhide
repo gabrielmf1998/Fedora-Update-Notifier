@@ -55,11 +55,16 @@ COLORS = {
     "green":  "#2ecc71",
     "grey":   "#95a5a6",
     "white":  "#f2f6fa",
-    "black":  "#1c1f24",
+    "black":  "#1c1f24",   # ver LABEL_TINT: ilegível como texto em menu escuro
     "red":    "#e74c3c",
     "yellow": "#ffcc00",
 }
 SHAPES = ("arrow", "box", "dot", "shield", "refresh")
+
+# Pintar o NOME da cor com a própria cor é o ponto do menu, mas preto sobre
+# menu escuro fica ilegível e branco sobre menu claro também. Para esses dois
+# o nome vai na cor normal do tema — o ícone ao lado já mostra a cor de fato.
+LABEL_TINT = {c: h for c, h in COLORS.items() if c not in ("black", "white")}
 
 DEFAULT_COLORS = {"update": "red", "idle": "green", "working": "grey"}
 DEFAULT_SHAPE = "arrow"
@@ -255,7 +260,8 @@ class Tray:
             st_root.set_submenu(st_menu)
             for color in sorted(COLORS):
                 it = self._choice(icon_for(self.shape, color), color,
-                                  self.colors[state] == color, COLORS[color])
+                                  self.colors[state] == color,
+                                  LABEL_TINT.get(color))
                 it.connect("toggled", self.on_color_chosen, state, color)
                 st_menu.append(it)
             st_root.show_all()
