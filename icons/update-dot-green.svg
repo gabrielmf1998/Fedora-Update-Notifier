@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Forma "arrow" na cor blue (#3b9dff).
+<!-- Forma "dot" na cor green (#2ecc71).
      Um arquivo por combinacao forma+cor: o nome do icone e' sempre estatico,
      entao a bandeja nunca precisa reler um arquivo cujo conteudo mudou -- que
      e' justamente quando o cache dela devolve o desenho antigo. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-  <g fill="none" stroke="#3b9dff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="4.4,12.6 4.4,17.6 17.6,17.6 17.6,12.6"/>
-    <polyline points="7.4,9.4 11,13 14.6,9.4"/>
-    <line x1="11" y1="3.4" x2="11" y2="12.4"/>
-  </g>
+  <circle cx="11" cy="11" r="6.4" fill="#2ecc71"/>
+  <circle cx="11" cy="11" r="8.6" fill="none" stroke="#2ecc71" stroke-width="1.4" opacity="0.35"/>
 </svg>

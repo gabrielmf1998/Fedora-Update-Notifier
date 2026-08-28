@@ -59,11 +59,14 @@ COLORS = {
     "red":    "#e74c3c",
     "yellow": "#ffcc00",
 }
+SHAPES = ("arrow", "box", "dot", "shield", "refresh")
+
 DEFAULT_COLORS = {"update": "red", "idle": "green", "working": "grey"}
+DEFAULT_SHAPE = "arrow"
 
 
-def icon_for(color):
-    return f"update-arrow-{color}"
+def icon_for(shape, color):
+    return f"update-{shape}-{color}"
 
 INTERVAL_MIN = 10                      # minutos entre checagens automáticas
 KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|.*nvidia)", re.I)
@@ -85,6 +88,7 @@ def load_colors():
     """Lê a escolha do usuário. Qualquer problema cai no padrão, porque um
     arquivo de configuração corrompido não pode impedir o ícone de aparecer."""
     colors = dict(DEFAULT_COLORS)
+    shape = DEFAULT_SHAPE
     try:
         with open(CONFIG) as fh:
             for line in fh:
@@ -93,16 +97,20 @@ def load_colors():
                 key, val = (x.strip() for x in line.split("=", 1))
                 if key in colors and val in COLORS:
                     colors[key] = val
+                elif key == "shape" and val in SHAPES:
+                    shape = val
     except OSError:
         pass
-    return colors
+    return colors, shape
 
 
-def save_colors(colors):
+def save_colors(colors, shape):
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(CONFIG, "w") as fh:
-        fh.write("# Cor do ícone da bandeja para cada estado.\n")
-        fh.write("# Valores: " + ", ".join(sorted(COLORS)) + "\n")
+        fh.write("# Aparência do ícone da bandeja.\n")
+        fh.write("# shape: " + ", ".join(SHAPES) + "\n")
+        fh.write("# cores: " + ", ".join(sorted(COLORS)) + "\n")
+        fh.write(f"shape = {shape}\n")
         for key in ("update", "idle", "working"):
             fh.write(f"{key} = {colors[key]}\n")
 
@@ -110,7 +118,7 @@ def save_colors(colors):
 class Tray:
     def __init__(self):
         Notify.init("Fedora Rawhide Updates")
-        self.colors = load_colors()
+        self.colors, self.shape = load_colors()
 
         self.count = None          # None = ainda não sabemos
         self.critical = []         # pendentes de kernel/nvidia
@@ -118,7 +126,7 @@ class Tray:
         self.busy = False
 
         self.ind = AppIndicator3.Indicator.new(
-            APP_ID, icon_for(self.colors["working"]),
+            APP_ID, icon_for(self.shape, self.colors["working"]),
             AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
         )
         self.ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
@@ -164,7 +172,7 @@ class Tray:
                       enabled=bool(self.count) and not self.busy)
 
         self.menu.append(Gtk.SeparatorMenuItem())
-        self.add_colors_menu()
+        self.add_appearance_menu()
 
         self.menu.append(Gtk.SeparatorMenuItem())
 
@@ -179,58 +187,90 @@ class Tray:
 
         self.menu.show_all()
 
-    def add_colors_menu(self):
-        """Submenu "Colors", com um estado por linha e as cores em rádio.
+    # ---------------------------------------------------------- aparência
+    @staticmethod
+    def _row(icon_name, text, active):
+        """Uma linha de escolha: marcador de seleção, o ícone DE VERDADE, e o
+        nome. Mostrar o desenho na própria linha é o ponto — uma lista de
+        nomes de cor em texto puro não deixa escolher nada de fato."""
+        item = Gtk.CheckMenuItem()
+        item.set_draw_as_radio(True)
+        item.set_active(active)
 
-        Rádio e não caixa: cada estado tem exatamente uma cor, e o grupo deixa
-        isso explícito — o usuário vê qual está valendo sem precisar abrir e
-        comparar.
-        """
-        root = Gtk.MenuItem(label="Colors")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        img = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.LARGE_TOOLBAR)
+        box.pack_start(img, False, False, 0)
+        lbl = Gtk.Label(label=text)
+        lbl.set_xalign(0.0)
+        box.pack_start(lbl, True, True, 0)
+        item.add(box)
+        item.show_all()
+        return item
+
+    def add_appearance_menu(self):
+        root = Gtk.MenuItem(label="Appearance")
         sub = Gtk.Menu()
         root.set_submenu(sub)
 
+        # --- forma: pré-visualizada na cor que já está em uso para "idle" ---
+        shape_root = Gtk.MenuItem(label=f"Icon  ({self.shape})")
+        shape_menu = Gtk.Menu()
+        shape_root.set_submenu(shape_menu)
+        for shape in SHAPES:
+            it = self._row(icon_for(shape, self.colors["idle"]),
+                           shape, self.shape == shape)
+            it.connect("toggled", self.on_shape_chosen, shape)
+            shape_menu.append(it)
+        shape_root.show_all()
+        sub.append(shape_root)
+
+        sub.append(Gtk.SeparatorMenuItem())
+
+        # --- cor por estado, cada linha com o ícone já naquela cor ---
         for state, label in (("update", "Update available"),
                              ("idle", "Up to date"),
                              ("working", "Checking")):
-            item = Gtk.MenuItem(label=f"{label}  ({self.colors[state]})")
-            colmenu = Gtk.Menu()
-            item.set_submenu(colmenu)
-
-            group = []
+            st_root = Gtk.MenuItem(label=f"{label}  ({self.colors[state]})")
+            st_menu = Gtk.Menu()
+            st_root.set_submenu(st_menu)
             for color in sorted(COLORS):
-                radio = Gtk.RadioMenuItem.new_with_label(group, color)
-                group = radio.get_group()
-                radio.set_active(self.colors[state] == color)
-                radio.connect("toggled", self.on_color_chosen, state, color)
-                radio.show()
-                colmenu.append(radio)
-
-            item.show_all()
-            sub.append(item)
+                it = self._row(icon_for(self.shape, color), color,
+                               self.colors[state] == color)
+                it.connect("toggled", self.on_color_chosen, state, color)
+                st_menu.append(it)
+            st_root.show_all()
+            sub.append(st_root)
 
         root.show_all()
         self.menu.append(root)
 
+    def on_shape_chosen(self, item, shape):
+        if not item.get_active() or self.shape == shape:
+            return
+        self.shape = shape
+        save_colors(self.colors, self.shape)
+        self.refresh_icon()
+        self.build_menu()
+
     def on_color_chosen(self, item, state, color):
-        # O toggled dispara também para o rádio que está sendo DESmarcado;
-        # sem esta guarda a escolha seria sobrescrita pelo item antigo.
+        # O toggled dispara também para o item que está sendo DESmarcado; sem
+        # esta guarda a escolha nova seria sobrescrita pela antiga.
         if not item.get_active() or self.colors[state] == color:
             return
         self.colors[state] = color
-        save_colors(self.colors)
+        save_colors(self.colors, self.shape)
         self.refresh_icon()
         self.build_menu()
 
     def refresh_icon(self):
-        """Reaplica o ícone do estado atual, para a troca de cor valer na hora."""
+        """Reaplica o ícone do estado atual, para a troca valer na hora."""
         if self.busy:
             state = "working"
         elif self.count:
             state = "update"
         else:
             state = "idle"
-        self.ind.set_icon_full(icon_for(self.colors[state]),
+        self.ind.set_icon_full(icon_for(self.shape, self.colors[state]),
                                self.ind.get_title() or APP_ID)
 
     def add_item(self, label, cb, enabled=True, bold=False):
@@ -261,7 +301,7 @@ class Tray:
         if self.busy:
             return
         self.busy = True
-        self.ind.set_icon_full(icon_for(self.colors["working"]), "Checking for updates")
+        self.ind.set_icon_full(icon_for(self.shape, self.colors["working"]), "Checking for updates")
         self.build_menu()
         threading.Thread(target=self._check_worker, args=(auto,),
                          daemon=True).start()
@@ -291,7 +331,7 @@ class Tray:
         self.busy = False
 
         state = "update" if count else "idle"
-        self.ind.set_icon_full(icon_for(self.colors[state]),
+        self.ind.set_icon_full(icon_for(self.shape, self.colors[state]),
                                f"{count} updates" if count else "Up to date")
         self.build_menu()
 
@@ -306,7 +346,7 @@ class Tray:
 
     def notify(self, title, body=""):
         try:
-            n = Notify.Notification.new(title, body, icon_for(self.colors["update"]))
+            n = Notify.Notification.new(title, body, icon_for(self.shape, self.colors["update"]))
             n.show()
         except Exception:
             pass
@@ -316,7 +356,7 @@ class Tray:
         if self.busy:
             return
         self.busy = True
-        self.ind.set_icon_full(icon_for(self.colors["working"]), "Installing updates")
+        self.ind.set_icon_full(icon_for(self.shape, self.colors["working"]), "Installing updates")
         self.build_menu()
         threading.Thread(target=self._install_worker, daemon=True).start()
 

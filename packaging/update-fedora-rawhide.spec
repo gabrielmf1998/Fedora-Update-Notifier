@@ -1,5 +1,5 @@
 Name:           update-fedora-rawhide
-Version:        1.1.0
+Version:        1.2.0
 Release:        1%{?dist}
 Summary:        Tray icon that watches for Fedora Rawhide updates
 
@@ -42,8 +42,10 @@ Checking is done as your own user with a read only "dnf check-update".
 Only the actual upgrade asks for a password, through pkexec. Nothing runs
 as root in the background.
 
-The colour of each of the three states can be chosen from the menu, from
-seven options, and is remembered in ~/.config/update-fedora-rawhide.
+Appearance is set from the menu: five icon shapes (arrow, box, dot, shield,
+refresh) and seven colours, chosen independently for each of the three
+states. Every choice is previewed with the real icon on its own menu row,
+and remembered in ~/.config/update-fedora-rawhide.
 
 %prep
 %autosetup
@@ -72,9 +74,13 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %doc %{_docdir}/%{name}/README.md
 %{_bindir}/%{name}
 %{_datadir}/applications/%{name}.desktop
-%{_datadir}/icons/hicolor/scalable/apps/update-arrow-*.svg
+%{_datadir}/icons/hicolor/scalable/apps/update-*.svg
 
 %changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.2.0-1
+- Icon shape is now selectable too: arrow, box, dot, shield or refresh.
+- Menu rows show the actual icon, so a choice can be seen before taking it.
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.1.0-1
 - Colours are now chosen from the menu, per state, out of seven options.
 - One icon file per colour, so the tray never has to reread a changed file.
