@@ -122,7 +122,7 @@ def save_colors(colors, shape):
 
 class Tray:
     def __init__(self):
-        Notify.init("Fedora Rawhide Updates")
+        Notify.init("Fedora Update Notifier")
         self.colors, self.shape = load_colors()
 
         self.count = None          # None = ainda não sabemos
@@ -135,7 +135,7 @@ class Tray:
             AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
         )
         self.ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
-        self.ind.set_title("Fedora Rawhide Updates")
+        self.ind.set_title("Fedora Update Notifier")
 
         self.menu = Gtk.Menu()
         self.ind.set_menu(self.menu)

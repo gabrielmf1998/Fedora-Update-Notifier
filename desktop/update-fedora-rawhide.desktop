@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Fedora Update Notifier
+GenericName=Update Checker
+Comment=Watch for system updates from the tray, and see at a glance when a kernel or driver update is waiting
+Exec=/usr/bin/update-fedora-rawhide
+Icon=fedora-update-notifier
+Terminal=false
+Categories=System;PackageManager;
+Keywords=update;upgrade;dnf;rpm;rawhide;fedora;tray;notifier;packages;
+StartupNotify=false
+SingleMainWindow=true
+X-GNOME-Autostart-enabled=true

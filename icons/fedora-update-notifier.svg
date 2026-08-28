@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icone do aplicativo. Azul do Fedora com a seta de atualizacao branca,
+     para evocar a distribuicao sem reproduzir a marca registrada. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3c78c8"/>
+      <stop offset="1" stop-color="#294172"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#g)"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="none"
+        stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/>
+  <g fill="none" stroke="#ffffff" stroke-width="4.6"
+     stroke-linecap="round" stroke-linejoin="round">
+    <line x1="32" y1="15" x2="32" y2="36"/>
+    <polyline points="22,27 32,37 42,27"/>
+    <polyline points="18,42 18,48 46,48 46,42"/>
+  </g>
+</svg>

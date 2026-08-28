@@ -1,7 +1,7 @@
 Name:           update-fedora-rawhide
-Version:        1.3.0
+Version:        1.4.0
 Release:        1%{?dist}
-Summary:        Tray icon that watches for Fedora Rawhide updates
+Summary:        Fedora Update Notifier, a tray icon that watches for system updates
 
 License:        MIT
 URL:            https://github.com/gabrielmf1998/update-check-fedora-rawhide
@@ -62,10 +62,14 @@ install -Dpm 0755 src/%{name} %{buildroot}%{_bindir}/%{name}
 # Os ícones vão para o tema hicolor: é o único lugar que a bandeja do KDE
 # resolve de forma confiável. Um diretório avulso via set_icon_theme_path()
 # registra certo no D-Bus mas não desenha.
-for f in icons/*.svg; do
+for f in icons/update-*.svg; do
     install -Dpm 0644 "$f" \
         %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/$(basename "$f")
 done
+
+# Ícone do aplicativo, o que aparece no menu do desktop.
+install -Dpm 0644 icons/fedora-update-notifier.svg \
+    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/fedora-update-notifier.svg
 
 install -Dpm 0644 desktop/%{name}.desktop \
     %{buildroot}%{_datadir}/applications/%{name}.desktop
@@ -78,8 +82,14 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_bindir}/%{name}
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/update-*.svg
+%{_datadir}/icons/hicolor/scalable/apps/fedora-update-notifier.svg
 
 %changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.4.0-1
+- The desktop entry was being shipped empty, so the menu showed the raw
+  command name with no icon. It now carries a proper name, description and
+  application icon: "Fedora Update Notifier".
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.3.0-1
 - The appearance menu now shows colour instead of naming it: state rows carry
   their current colour as an icon, and each colour name is drawn in its colour.
