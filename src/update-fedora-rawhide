@@ -189,22 +189,42 @@ class Tray:
 
     # ---------------------------------------------------------- aparência
     @staticmethod
-    def _row(icon_name, text, active):
-        """Uma linha de escolha: marcador de seleção, o ícone DE VERDADE, e o
-        nome. Mostrar o desenho na própria linha é o ponto — uma lista de
-        nomes de cor em texto puro não deixa escolher nada de fato."""
+    def _labelled(icon_name, text, tint=None):
+        """Caixa com o ícone de verdade e o texto, opcionalmente pintado.
+
+        Mostrar o desenho e escrever o nome na própria cor é o ponto: uma
+        lista de nomes em texto neutro não deixa escolher nada de fato, e um
+        "(red)" entre parênteses no item pai diz a cor sem mostrá-la.
+        """
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        box.pack_start(
+            Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.LARGE_TOOLBAR),
+            False, False, 0)
+        lbl = Gtk.Label()
+        if tint:
+            lbl.set_markup(
+                f'<span foreground="{tint}">{GLib.markup_escape_text(text)}</span>')
+        else:
+            lbl.set_text(text)
+        lbl.set_xalign(0.0)
+        box.pack_start(lbl, True, True, 0)
+        return box
+
+    @classmethod
+    def _choice(cls, icon_name, text, active, tint=None):
+        """Linha de escolha: marcador de seleção mais o preview."""
         item = Gtk.CheckMenuItem()
         item.set_draw_as_radio(True)
         item.set_active(active)
-
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        img = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.LARGE_TOOLBAR)
-        box.pack_start(img, False, False, 0)
-        lbl = Gtk.Label(label=text)
-        lbl.set_xalign(0.0)
-        box.pack_start(lbl, True, True, 0)
-        item.add(box)
+        item.add(cls._labelled(icon_name, text, tint))
         item.show_all()
+        return item
+
+    @classmethod
+    def _parent(cls, icon_name, text):
+        """Item que abre um submenu, mostrando o estado atual como ÍCONE."""
+        item = Gtk.MenuItem()
+        item.add(cls._labelled(icon_name, text))
         return item
 
     def add_appearance_menu(self):
@@ -213,12 +233,12 @@ class Tray:
         root.set_submenu(sub)
 
         # --- forma: pré-visualizada na cor que já está em uso para "idle" ---
-        shape_root = Gtk.MenuItem(label=f"Icon  ({self.shape})")
+        shape_root = self._parent(icon_for(self.shape, self.colors["idle"]), "Icon")
         shape_menu = Gtk.Menu()
         shape_root.set_submenu(shape_menu)
         for shape in SHAPES:
-            it = self._row(icon_for(shape, self.colors["idle"]),
-                           shape, self.shape == shape)
+            it = self._choice(icon_for(shape, self.colors["idle"]),
+                              shape, self.shape == shape)
             it.connect("toggled", self.on_shape_chosen, shape)
             shape_menu.append(it)
         shape_root.show_all()
@@ -230,12 +250,12 @@ class Tray:
         for state, label in (("update", "Update available"),
                              ("idle", "Up to date"),
                              ("working", "Checking")):
-            st_root = Gtk.MenuItem(label=f"{label}  ({self.colors[state]})")
+            st_root = self._parent(icon_for(self.shape, self.colors[state]), label)
             st_menu = Gtk.Menu()
             st_root.set_submenu(st_menu)
             for color in sorted(COLORS):
-                it = self._row(icon_for(self.shape, color), color,
-                               self.colors[state] == color)
+                it = self._choice(icon_for(self.shape, color), color,
+                                  self.colors[state] == color, COLORS[color])
                 it.connect("toggled", self.on_color_chosen, state, color)
                 st_menu.append(it)
             st_root.show_all()

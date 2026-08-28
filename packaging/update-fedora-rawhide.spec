@@ -1,5 +1,5 @@
 Name:           update-fedora-rawhide
-Version:        1.2.0
+Version:        1.3.0
 Release:        1%{?dist}
 Summary:        Tray icon that watches for Fedora Rawhide updates
 
@@ -44,8 +44,11 @@ as root in the background.
 
 Appearance is set from the menu: five icon shapes (arrow, box, dot, shield,
 refresh) and seven colours, chosen independently for each of the three
-states. Every choice is previewed with the real icon on its own menu row,
-and remembered in ~/.config/update-fedora-rawhide.
+states. Nothing is described in words that can be shown instead — each row
+carries the icon it would produce, the colour names are written in their own
+colour, and the state rows show their current colour as an icon rather than
+spelling it out in brackets. The choice is remembered in
+~/.config/update-fedora-rawhide.
 
 %prep
 %autosetup
@@ -77,6 +80,10 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_datadir}/icons/hicolor/scalable/apps/update-*.svg
 
 %changelog
+* Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.3.0-1
+- The appearance menu now shows colour instead of naming it: state rows carry
+  their current colour as an icon, and each colour name is drawn in its colour.
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.2.0-1
 - Icon shape is now selectable too: arrow, box, dot, shield or refresh.
 - Menu rows show the actual icon, so a choice can be seen before taking it.

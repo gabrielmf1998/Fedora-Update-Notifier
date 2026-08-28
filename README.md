@@ -18,7 +18,7 @@ It checks every ten minutes in the background. No daemon runs as root.
 Download the `.rpm` from the [Releases](../../releases) page, then:
 
 ```bash
-sudo dnf install ./update-fedora-rawhide-1.1.0-1.fc46.noarch.rpm
+sudo dnf install ./update-fedora-rawhide-1.3.0-1.fc46.noarch.rpm
 ```
 
 `dnf` pulls in every dependency on its own. Start it from your application
@@ -65,8 +65,10 @@ reboot is coming.
 
 ## Appearance
 
-**Appearance** in the menu sets two things, and every row shows the icon it
-would produce, so you choose by looking rather than by guessing.
+**Appearance** in the menu sets two things, and nothing is described in words
+that can be shown instead: every row carries the icon it would produce, each
+colour name is written in its own colour, and the state rows show their
+current colour as an icon rather than spelling it out in brackets.
 
 **Icon** — five shapes: `arrow`, `box`, `dot`, `shield`, `refresh`.
 
@@ -112,7 +114,7 @@ while a check is running.
 sudo dnf install rpm-build rpmdevtools
 rpmdev-setuptree
 
-VERSION=1.1.0
+VERSION=1.3.0
 git archive --format=tar.gz \
     --prefix=update-fedora-rawhide-$VERSION/ \
     -o ~/rpmbuild/SOURCES/update-fedora-rawhide-$VERSION.tar.gz HEAD
