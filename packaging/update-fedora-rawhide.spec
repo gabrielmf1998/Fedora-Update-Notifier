@@ -9,8 +9,9 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 
-# Só arquivos de dados e um script Python: nada a compilar.
-BuildRequires:  python3-devel
+# Nada a compilar: o pacote é um script Python mais arquivos de dados, então
+# não há BuildRequires. Manter python3-devel aqui só obrigaria quem constrói a
+# instalar um pacote de desenvolvimento sem uso.
 
 Requires:       python3
 Requires:       python3-gobject
