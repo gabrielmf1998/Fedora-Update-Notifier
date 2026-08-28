@@ -34,28 +34,14 @@ from gi.repository import AppIndicator3, GLib, Gtk, Notify  # noqa: E402
 
 APP_ID = "update-fedora-rawhide"
 HOME = os.path.expanduser("~")
-# Instalado pelo RPM os ícones ficam em /usr/share; rodando direto do
-# repositório (ou de ~/.local) caímos no diretório do usuário. Assim o mesmo
-# arquivo serve para os dois casos, sem precisar de duas versões.
-_ICON_CANDIDATES = (
-    "/usr/share/update-fedora-rawhide/icons",
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "icons"),
-    os.path.join(HOME, ".local/share/icons"),
-)
-ICON_DIR = next(
-    (d for d in _ICON_CANDIDATES if os.path.exists(os.path.join(d, "update-arrow-ok.svg"))),
-    _ICON_CANDIDATES[-1],
-)
-AUTOSTART = os.path.join(HOME, ".config/autostart", f"{APP_ID}.desktop")
-SELF = os.path.abspath(__file__)
-
-# O AppIndicator/StatusNotifier do KDE resolve icone por NOME dentro de um
-# diretorio de tema, nao por caminho absoluto. Passar caminho funciona de
-# forma inconsistente e o icone some da bandeja.
+# Os ícones são instalados no tema hicolor do sistema
+# (/usr/share/icons/hicolor/scalable/apps). É o único lugar que o
+# StatusNotifier do KDE resolve de forma confiável: um diretório avulso
+# passado por set_icon_theme_path() registra certo no D-Bus, mas o ícone
+# simplesmente não é desenhado na bandeja.
 ICON_OK = "update-arrow-ok"
 ICON_PENDING = "update-arrow-pending"
 ICON_BUSY = "update-arrow-busy"
-ICON_PATH_PENDING = os.path.join(ICON_DIR, "update-arrow-pending.svg")
 
 INTERVAL_MIN = 10                      # minutos entre checagens automáticas
 KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|.*nvidia)", re.I)
@@ -85,7 +71,6 @@ class Tray:
         self.ind = AppIndicator3.Indicator.new(
             APP_ID, ICON_BUSY, AppIndicator3.IndicatorCategory.SYSTEM_SERVICES
         )
-        self.ind.set_icon_theme_path(ICON_DIR)
         self.ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.ind.set_title("Fedora Rawhide Updates")
 
@@ -213,7 +198,7 @@ class Tray:
 
     def notify(self, title, body=""):
         try:
-            n = Notify.Notification.new(title, body, ICON_PATH_PENDING)
+            n = Notify.Notification.new(title, body, ICON_PENDING)
             n.show()
         except Exception:
             pass

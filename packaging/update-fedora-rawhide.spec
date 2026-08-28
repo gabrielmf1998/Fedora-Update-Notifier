@@ -51,16 +51,13 @@ as root in the background.
 %install
 install -Dpm 0755 src/%{name} %{buildroot}%{_bindir}/%{name}
 
-# Os ícones ficam num diretório próprio em vez de entrar no tema hicolor:
-# o AppIndicator recebe esse caminho via set_icon_theme_path() e resolve os
-# nomes ali dentro, sem risco de conflitar com o tema de ícones do sistema.
+# Os ícones vão para o tema hicolor: é o único lugar que a bandeja do KDE
+# resolve de forma confiável. Um diretório avulso via set_icon_theme_path()
+# registra certo no D-Bus mas não desenha.
 for f in icons/*.svg; do
-    install -Dpm 0644 "$f" %{buildroot}%{_datadir}/%{name}/icons/$(basename "$f")
+    install -Dpm 0644 "$f" \
+        %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/$(basename "$f")
 done
-
-# O mesmo SVG serve de ícone da aplicação no menu do desktop.
-install -Dpm 0644 icons/update-arrow-pending.svg \
-    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/update-arrow-pending.svg
 
 install -Dpm 0644 desktop/%{name}.desktop \
     %{buildroot}%{_datadir}/applications/%{name}.desktop
@@ -71,9 +68,8 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %license LICENSE
 %doc %{_docdir}/%{name}/README.md
 %{_bindir}/%{name}
-%{_datadir}/%{name}/
 %{_datadir}/applications/%{name}.desktop
-%{_datadir}/icons/hicolor/scalable/apps/update-arrow-pending.svg
+%{_datadir}/icons/hicolor/scalable/apps/update-arrow-*.svg
 
 %changelog
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.0.0-1
