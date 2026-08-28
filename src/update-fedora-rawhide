@@ -34,6 +34,9 @@ from gi.repository import AppIndicator3, GLib, Gtk, Notify  # noqa: E402
 
 APP_ID = "update-fedora-rawhide"
 HOME = os.path.expanduser("~")
+AUTOSTART = os.path.join(HOME, ".config/autostart", f"{APP_ID}.desktop")
+SELF = os.path.abspath(__file__)
+
 # Os ícones são instalados no tema hicolor do sistema
 # (/usr/share/icons/hicolor/scalable/apps). É o único lugar que o
 # StatusNotifier do KDE resolve de forma confiável: um diretório avulso
