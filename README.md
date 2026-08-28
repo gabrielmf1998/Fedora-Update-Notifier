@@ -52,7 +52,7 @@ rm -f ~/.config/autostart/update-fedora-rawhide.desktop
 | **Check now** | Checks immediately, without waiting for the timer. |
 | **Install updates…** | Opens a terminal running `dnf upgrade`. You watch it and can abort. |
 | **Show package list** | Lists what is pending. |
-| **Colors** | Pick the colour of each state. Seven options: blue, green, grey, white, black, red, yellow. |
+| **Appearance** | Icon shape and the colour of each state, each row previewed with the real icon. |
 | **Start with system** | Adds or removes the autostart entry. |
 | **Quit** | Closes the tray icon. |
 
@@ -63,17 +63,24 @@ reboot is coming.
 
 ---
 
-## Colours
+## Appearance
 
-**Colors** in the menu sets the colour of each state independently, out of
-blue, green, grey, white, black, red and yellow. The choice takes effect
-immediately and is remembered in:
+**Appearance** in the menu sets two things, and every row shows the icon it
+would produce, so you choose by looking rather than by guessing.
+
+**Icon** — five shapes: `arrow`, `box`, `dot`, `shield`, `refresh`.
+
+**Colour, per state** — seven options: blue, green, grey, white, black, red,
+yellow, chosen independently for update, idle and working.
+
+Both take effect immediately and are remembered in:
 
 ```
 ~/.config/update-fedora-rawhide/colors.conf
 ```
 
 ```ini
+shape   = arrow
 update  = red
 idle    = green
 working = grey
