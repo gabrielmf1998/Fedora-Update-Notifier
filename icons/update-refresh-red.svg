@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Forma "refresh" na cor red (#e74c3c).
-     Um arquivo por combinacao forma+cor: o nome do icone e' sempre estatico,
-     entao a bandeja nunca precisa reler um arquivo cujo conteudo mudou -- que
-     e' justamente quando o cache dela devolve o desenho antigo. -->
+<!-- Forma "refresh", cor red (#e74c3c). Um arquivo por combinacao de forma e cor,
+     para que o nome do icone seja sempre estatico. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
   <g fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M18.6 11a7.6 7.6 0 1 1-2.23-5.37"/>

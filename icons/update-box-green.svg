@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Forma "box" na cor green (#2ecc71).
-     Um arquivo por combinacao forma+cor: o nome do icone e' sempre estatico,
-     entao a bandeja nunca precisa reler um arquivo cujo conteudo mudou -- que
-     e' justamente quando o cache dela devolve o desenho antigo. -->
+<!-- Forma "box", cor green (#2ecc71). Um arquivo por combinacao de forma e cor,
+     para que o nome do icone seja sempre estatico. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
   <g fill="none" stroke="#2ecc71" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round">
     <path d="M11 2.6 19 6.6v8.8L11 19.4 3 15.4V6.6z"/>

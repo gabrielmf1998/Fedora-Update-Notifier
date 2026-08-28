@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Forma "dot" na cor blue (#3b9dff).
-     Um arquivo por combinacao forma+cor: o nome do icone e' sempre estatico,
-     entao a bandeja nunca precisa reler um arquivo cujo conteudo mudou -- que
-     e' justamente quando o cache dela devolve o desenho antigo. -->
+<!-- Forma "dot", cor blue (#3b9dff). Um arquivo por combinacao de forma e cor,
+     para que o nome do icone seja sempre estatico. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
   <circle cx="11" cy="11" r="6.4" fill="#3b9dff"/>
   <circle cx="11" cy="11" r="8.6" fill="none" stroke="#3b9dff" stroke-width="1.4" opacity="0.35"/>
