@@ -74,7 +74,84 @@ def icon_for(shape, color):
     return f"update-{shape}-{color}"
 
 INTERVAL_MIN = 10                      # minutos entre checagens automáticas
-KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|.*nvidia)", re.I)
+
+# Pacotes que obrigam a reiniciar. Vale para as duas famílias: no Fedora o
+# kernel vem como "kernel*" e o driver como "akmod-nvidia"/"kmod-nvidia"; no
+# Arch e derivados o kernel é "linux", "linux-lts", "linux-cachyos"... e o
+# driver "nvidia", "nvidia-dkms", "nvidia-open".
+KERNEL_RE = re.compile(r"^(kernel|akmod|kmod|linux|linux-|.*nvidia)", re.I)
+
+# Terminais em ordem de preferência. O menu abre um deles para o usuário
+# acompanhar a instalação e poder abortar; sem nenhum, o item fica desligado.
+TERMINALS = (
+    ("konsole", ["konsole", "--hold", "-e"]),
+    ("alacritty", ["alacritty", "-e"]),
+    ("kitty", ["kitty", "--hold", "-e"]),
+    ("ptyxis", ["ptyxis", "--"]),
+    ("gnome-terminal", ["gnome-terminal", "--"]),
+    ("xfce4-terminal", ["xfce4-terminal", "-x"]),
+    ("foot", ["foot"]),
+    ("xterm", ["xterm", "-hold", "-e"]),
+)
+
+
+def which(prog):
+    from shutil import which as _w
+    return _w(prog)
+
+
+def terminal_cmd():
+    for prog, argv in TERMINALS:
+        if which(prog):
+            return argv
+    return None
+
+
+class Backend:
+    """O gerenciador de pacotes da máquina.
+
+    A checagem precisa ser somente-leitura e sem senha nas duas famílias:
+    no Fedora "dnf check-update"; no Arch "checkupdates", do pacman-contrib,
+    que sincroniza um banco temporário em vez de tocar no do sistema. Sem
+    ele sobra "pacman -Qu", que só enxerga o que já foi sincronizado.
+    """
+
+    def __init__(self):
+        if which("dnf"):
+            self.name = "dnf"
+            self.check = ["dnf", "check-update", "--refresh"]
+            self.upgrade = "dnf upgrade -y --refresh"
+        elif which("pacman"):
+            self.name = "pacman"
+            if which("checkupdates"):
+                self.check = ["checkupdates"]
+            else:
+                self.check = ["pacman", "-Qu"]
+            self.upgrade = "pacman -Syu"
+        else:
+            self.name = None
+            self.check = None
+            self.upgrade = None
+
+    def parse(self, out):
+        """Devolve a lista de pacotes a atualizar."""
+        pkgs = []
+        for line in out.splitlines():
+            if self.name == "dnf":
+                m = re.match(
+                    r"^([a-zA-Z0-9_.+-]+)\.(x86_64|i686|noarch|aarch64)\s+\S+\s+\S+",
+                    line)
+                if m:
+                    pkgs.append(m.group(1))
+            else:
+                # checkupdates e pacman -Qu: "nome versao-antiga -> versao-nova"
+                m = re.match(r"^([a-zA-Z0-9_.@+-]+)\s+\S+\s+->\s+\S+", line)
+                if m:
+                    pkgs.append(m.group(1))
+        return pkgs
+
+
+BACKEND = Backend()
 
 
 def run(cmd, timeout=600):
@@ -333,16 +410,14 @@ class Tray:
                          daemon=True).start()
 
     def _check_worker(self, auto):
-        # check-update devolve 100 quando HÁ atualizações e 0 quando não há;
-        # qualquer outro código é erro de verdade.
-        rc, out = run(["dnf", "check-update", "--refresh"], timeout=900)
-
-        pkgs = []
-        for line in out.splitlines():
-            m = re.match(r"^([a-zA-Z0-9_.+-]+)\.(x86_64|i686|noarch)\s+\S+\s+\S+",
-                         line)
-            if m:
-                pkgs.append(m.group(1))
+        # dnf check-update devolve 100 quando HÁ atualizações e 0 quando não há;
+        # checkupdates devolve 2 quando não há. Em nenhum dos dois o código de
+        # saída distingue "sem update" de "falhou", então o que vale é a saída.
+        if BACKEND.check is None:
+            GLib.idle_add(self._check_done, 0, [], [], auto, 1)
+            return
+        rc, out = run(BACKEND.check, timeout=900)
+        pkgs = BACKEND.parse(out)
 
         count = len(pkgs)
         critical = sorted({p for p in pkgs if KERNEL_RE.match(p)})
@@ -389,9 +464,13 @@ class Tray:
     def _install_worker(self):
         # Roda num terminal para o usuário ver o progresso e poder abortar.
         # pkexec cuida da autenticação.
-        cmd = ("konsole --hold -e bash -c "
-               + shlex.quote("pkexec dnf upgrade -y --refresh; echo; "
-                             "echo '--- done, close this window ---'; read -n1"))
+        term = terminal_cmd()
+        if term is None or BACKEND.upgrade is None:
+            GLib.idle_add(self._install_done)
+            return
+        inner = (f"pkexec {BACKEND.upgrade}; echo; "
+                 "echo '--- done, close this window ---'; read -n1")
+        cmd = " ".join(shlex.quote(a) for a in term + ["bash", "-c", inner])
         rc, _ = run(cmd, timeout=7200)
         GLib.idle_add(self._install_done)
 
@@ -405,9 +484,12 @@ class Tray:
         pkgs = getattr(self, "pkgs", [])
         if not pkgs:
             return
+        term = terminal_cmd()
+        if term is None:
+            return
         text = "\n".join(sorted(pkgs))
-        cmd = ("konsole --hold -e bash -c "
-               + shlex.quote(f"printf '%s\\n' {shlex.quote(text)} | less"))
+        inner = f"printf '%s\\n' {shlex.quote(text)} | less"
+        cmd = " ".join(shlex.quote(a) for a in term + ["bash", "-c", inner])
         subprocess.Popen(cmd, shell=True)
 
     # -------------------------------------------------------------- autostart

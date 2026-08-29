@@ -1,0 +1,38 @@
+# Maintainer: Gabriel <empresagabriel24@gmail.com>
+pkgname=update-notifier-tray
+pkgver=1.5.0
+pkgrel=1
+pkgdesc="Tray icon that watches for system updates, for Fedora and Arch based systems"
+arch=('any')
+url="https://github.com/gabrielmf1998/UpdateNotify-Fedora"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk3' 'libappindicator-gtk3' 'libnotify' 'polkit')
+# checkupdates vem do pacman-contrib e e o unico jeito de checar atualizacoes
+# sem privilegio: ele sincroniza um banco temporario em vez de tocar no do
+# sistema. Sem ele o app cai em "pacman -Qu", que so ve o que ja foi baixado.
+optdepends=('pacman-contrib: check for updates without root'
+            'konsole: terminal used by "Install updates"'
+            'alacritty: alternative terminal'
+            'kitty: alternative terminal')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$srcdir/update-fedora-rawhide-$pkgver"
+
+    install -Dm755 src/update-fedora-rawhide \
+        "$pkgdir/usr/bin/update-fedora-rawhide"
+
+    for f in icons/update-*.svg; do
+        install -Dm644 "$f" \
+            "$pkgdir/usr/share/icons/hicolor/scalable/apps/$(basename "$f")"
+    done
+    install -Dm644 icons/fedora-update-notifier.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/fedora-update-notifier.svg"
+
+    install -Dm644 desktop/update-fedora-rawhide.desktop \
+        "$pkgdir/usr/share/applications/update-fedora-rawhide.desktop"
+
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

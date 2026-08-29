@@ -1,10 +1,10 @@
 Name:           update-fedora-rawhide
-Version:        1.4.1
+Version:        1.5.0
 Release:        1%{?dist}
 Summary:        Fedora Update Notifier, a tray icon that watches for system updates
 
 License:        MIT
-URL:            https://github.com/gabrielmf1998/update-check-fedora-rawhide
+URL:            https://github.com/gabrielmf1998/UpdateNotify-Fedora
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
@@ -18,6 +18,8 @@ Requires:       python3-gobject
 Requires:       gtk3
 Requires:       libappindicator-gtk3
 Requires:       libnotify
+# O gerenciador de pacotes e detectado em tempo de execucao; neste pacote,
+# que so e' instalado em Fedora, o dnf e' garantido.
 Requires:       dnf
 # O menu "Install updates…" e "Show package list" abrem um terminal.
 Recommends:     konsole
@@ -38,7 +40,11 @@ out of tree NVIDIA module has to be rebuilt — the menu calls out separately
 whether the pending updates include kernel or driver packages. That is the
 piece of information that tells you a reboot is coming.
 
-Checking is done as your own user with a read only "dnf check-update".
+The package manager is detected at startup, so the same program serves Fedora
+and Arch based systems: "dnf check-update" here, "checkupdates" from
+pacman-contrib there.
+
+Checking is done as your own user with a read only command.
 Only the actual upgrade asks for a password, through pkexec. Nothing runs
 as root in the background.
 
@@ -100,6 +106,13 @@ fi
 %{_datadir}/icons/hicolor/scalable/apps/fedora-update-notifier.svg
 
 %changelog
+* Sat Aug 29 2026 Gabriel <empresagabriel24@gmail.com> - 1.5.0-1
+- Support Arch based systems, CachyOS included: the package manager is
+  detected at startup and pacman is driven through checkupdates.
+- Kernel and driver highlighting now recognises linux* and nvidia-dkms too.
+- The terminal used by "Install updates" is picked from what is installed
+  instead of assuming konsole.
+
 * Fri Aug 28 2026 Gabriel <empresagabriel24@gmail.com> - 1.4.1-1
 - Refresh the desktop and icon caches on install, so the menu entry and its
   icon show up on the user's machine without any manual step.
